@@ -1,10 +1,15 @@
-mod emulator;
+use std::fs;
+pub mod emulator;
 use emulator::Emulator;
-
 fn main() {
-    // setupGraphics
-    // setup input
+    let mut emu = Emulator::new();
+    let filename = "./static/roms/TEST_CHIP8";
+    let byz = std::fs::read(&filename).unwrap();
+    emu.load_program(byz);
+    for i in 0..2000 {
+        emu.run_cycle();
+        emu.run_cycle();
+    }
 
-    let mut vm = Emulator::new();
-    println!("Nothing here yet");
+    println!("Finished!")
 }
