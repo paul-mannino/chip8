@@ -1,18 +1,14 @@
 use rand::Rng;
-use std::io;
-use std::io::prelude::*;
-use std::fs::File;
 
 const MEM_SIZE: usize = 4096;
 const N_REGISTERS: usize = 16;
 const STACK_SIZE: usize = 16;
 const PROG_START: usize = 0x200;
+const FONT_START: usize = 0;
 const SCREEN_WIDTH: usize = 64;
 const SCREEN_HEIGHT: usize = 32;
 const N_KEYS: usize = 16;
 const OP_SIZE: usize = 2;
-const FONT_START: usize = 0x50;
-const PROGRAM_START: usize = 0x200;
 
 type Opcode = u16;
 
@@ -37,7 +33,7 @@ const FONTSET: [u8; 80] = [
 
 pub struct Emulator {
     memory: [u8; MEM_SIZE],
-    registers: [u8; N_REGISTERS],
+    pub registers: [u8; N_REGISTERS],
     i: usize,
     pc: usize,
     graphics: Vec<Vec<u8>>,
@@ -74,7 +70,7 @@ impl Emulator {
     }
 
     pub fn load_program(&mut self, instructions: Vec<u8>) {
-        for (i, &instruction) in instructions.iter().enumerate() {
+        for (i, &instruction) in instructions.iter().enumerate().take_while(|(i, _)| *i < PROG_START + MEM_SIZE) {
             self.memory[i + PROG_START] = instruction;
         }
     }
@@ -223,8 +219,7 @@ impl Emulator {
     }
 
     fn i_7xnn(&mut self, x: usize, nn: u8) {
-        let result = self.registers[x].wrapping_add(nn);
-        self.registers[x] = result;
+        self.registers[x] =  truncated_add(self.registers[x], nn);
         self.pc += OP_SIZE;
     }
 
@@ -249,56 +244,49 @@ impl Emulator {
     }
 
     fn i_8xy4(&mut self, x: usize, y: usize) {
-        let result = self.registers[x].wrapping_add(self.registers[y]);
-        let carry;
-        if result >= self.registers[x] && result >= self.registers[y] {
-            carry = 0;
+        if self.registers[x].checked_add(self.registers[y]).is_none() {
+            *self.vf() = 1;
         }
         else {
-            carry = 1;
+            *self.vf() = 0;
         }
-        self.registers[x] = result;
-        self.registers[0x0f] = carry;
+        self.registers[x] = truncated_add(self.registers[x], self.registers[y]);
         self.pc += OP_SIZE;
     }
 
     fn i_8xy5(&mut self, x: usize, y: usize) {
-        let borrow;
         if self.registers[x] < self.registers[y] {
-            borrow = 1;
+            *self.vf() = 0;
         }
         else {
-            borrow = 0;
+            *self.vf() = 1;
         }
         self.registers[x] = self.registers[x].wrapping_sub(self.registers[y]);
-        self.registers[0x0f] = borrow;
         self.pc += OP_SIZE;
     }
 
     fn i_8xy6(&mut self, x: usize) {
         let lsb = 1 & self.registers[x];
         self.registers[x] >>= 1;
-        self.registers[0x0f] = lsb;
+        *self.vf() = lsb;
         self.pc += OP_SIZE;
     }
 
     fn i_8xy7(&mut self, x: usize, y: usize) {
-        let borrow;
         if self.registers[x] < self.registers[y] {
-            borrow = 1;
+            *self.vf() = 1;
         }
         else {
-            borrow = 0;
+            *self.vf() = 0;
         }
-        self.registers[0x0f] = borrow;
-        self.registers[x] = self.registers[y] - self.registers[x];
+        self.registers[x] = self.registers[y].wrapping_sub(self.registers[x]);
         self.pc += OP_SIZE;
     }
 
     fn i_8xye(&mut self, x: usize) {
         let msb = 1 & (self.registers[x] >> 7);
         self.registers[x] <<= 1;
-        self.registers[0x0f] = msb;
+        *self.vf() = msb;
         self.pc += OP_SIZE;
     }
 
@@ -325,16 +313,17 @@ impl Emulator {
     }
 
     fn i_dxyn(&mut self, x: usize, y: usize, n: usize) {
-        self.registers[0x0f] = 0;
+        *self.vf() = 0;
         for y_offset in 0..n {
             let pixel = self.memory[self.i + y_offset];
+            let p_y = (self.registers[y] as usize + y_offset) % SCREEN_HEIGHT;
             for x_offset in 0..8 {
-                if (pixel & (1 << (7 - x_offset))) != 0 {
-                    if self.graphics[y + y_offset][x + x_offset] == 1 {
-                        self.registers[0x0f] = 1;
-                    }
-                    self.graphics[y + y_offset][x + x_offset] ^= 1;
+                let bit = 1 & (pixel >> (7 - x_offset));
+                let p_x = (self.registers[x] as usize + x_offset) % SCREEN_WIDTH;
+                if bit == 1 && self.graphics[p_y][p_x] == bit{
+                    *self.vf() = 1;
                 }
+                self.graphics[p_y][p_x] ^= bit;
             }
         }
 
@@ -398,7 +387,6 @@ impl Emulator {
         for j in 0..=x {
             self.memory[self.i + j] = self.registers[j];
         }
-        self.i += x + 1;
         self.pc += OP_SIZE;
     }
 
@@ -406,7 +394,56 @@ impl Emulator {
         for j in 0..=x {
             self.registers[j] = self.memory[self.i + j];
         }
-        self.i += x + 1;
         self.pc += OP_SIZE;
+    }
+
+    fn vf(&mut self) -> &mut u8 {
+        &mut self.registers[0x0f]
+    }
+}
+
+fn truncated_add(x: u8, y: u8) -> u8 {
+    let z = (x as u16) + (y as u16);
+    z as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PROG_START, OP_SIZE, Emulator};
+
+    #[test]
+    fn test_5xy0() {
+        let mut emulator = Emulator::new();
+        emulator.registers[4] = 0x03;
+        emulator.registers[5] = 0x04;
+        emulator.registers[6] = 0x03;
+
+        assert_eq!(emulator.pc, PROG_START);
+        emulator.run_opcode(0x5450);
+        assert_eq!(emulator.pc, PROG_START + OP_SIZE);
+        emulator.run_opcode(0x5460);
+        assert_eq!(emulator.pc, PROG_START + 3 * OP_SIZE);
+    }
+
+    #[test]
+    fn test_dxyn_graphics_updates() {
+        let mut emulator = Emulator::new();
+        emulator.registers[2] = 5;
+        emulator.registers[3] = 6;
+        emulator.memory[0x500] = 0b10101100;
+        // set i = 0x500
+        emulator.run_opcode(0xa500);
+        // update graphics, at screen position y=reg[2], x=reg[3]
+        emulator.run_opcode(0xd231);
+
+        let expected_row = vec![1, 0, 1, 0, 1, 1, 0, 0];
+        assert_eq!(emulator.graphics[6][5..13], expected_row[..]);
+        assert_eq!(*emulator.vf(), 0);
+
+        emulator.memory[0x500] = 0b00110000;
+        emulator.run_opcode(0xd231);
+        let expected_row = vec![1, 0, 0, 1, 1, 1, 0, 0];
+        assert_eq!(emulator.graphics[6][5..13], expected_row[..]);
+        assert_eq!(*emulator.vf(), 1);
     }
 }

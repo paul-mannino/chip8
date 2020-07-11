@@ -27,7 +27,7 @@ impl Bus {
         self.emulator.load_program(instructions);
     }
 
-    pub fn run_cycle(&mut self) {
+    pub fn clock_tick(&mut self) {
         self.emulator.run_cycle();
     }
 
@@ -44,6 +44,11 @@ impl Bus {
     }
 
     pub fn vram_width(&self) -> usize {
-        self.emulator.graphics().len()
+        if let Some(row) = self.emulator.graphics().first() {
+            row.len()
+        }
+        else {
+            0
+        }
     }
 }

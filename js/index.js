@@ -8,6 +8,7 @@ class Screen {
   render(pixels, logicalHeight, logicalWidth) {
     const sHeight = this.canvas.height;
     const sWidth = this.canvas.width;
+    this.ctx.clearRect(0, 0, sWidth, sHeight);
     const pixelHeight = sHeight/logicalHeight;
     const pixelWidth = sWidth/logicalWidth;
 
@@ -17,9 +18,6 @@ class Screen {
         const yPos = j * pixelHeight;
         if (pixels[i + (j * logicalWidth)] == 1) {
           this.ctx.fillRect(xPos, yPos, pixelWidth, pixelHeight);
-        }
-        else {
-          this.ctx.clearRect(xPos, yPos, pixelWidth, pixelHeight)
         }
       }
     }
@@ -43,14 +41,13 @@ function load_rom_bytes(rom_name, callback) {
 
 import("../pkg/index.js").then((pkg) => {
   const screen = new Screen('canvas');
-  const instructions = load_rom_bytes('TEST_CHIP8', function(instructions) {
+  load_rom_bytes('IBM', function(instructions) {
     const bus = pkg.Bus.new();
     bus.load_rom(instructions)
     let i = 0;
-    while(i < 3000) {
-      console.log(i);
+    while(i < 100000) {
       i += 1;
-      bus.run_cycle();
+      bus.clock_tick();
       if (bus.rerender()) {
         screen.render(
           bus.flattened_vram(),
