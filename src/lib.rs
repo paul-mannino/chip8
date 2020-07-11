@@ -31,6 +31,10 @@ impl Bus {
         self.emulator.run_cycle();
     }
 
+    pub fn rerender(&self) -> bool {
+        self.emulator.graphics_changed()
+    }
+
     pub fn flattened_vram(&self) -> Vec<u8> {
         self.emulator.graphics().iter().flatten().cloned().collect()
     }

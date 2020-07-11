@@ -83,7 +83,13 @@ impl Emulator {
         &self.graphics
     }
 
+    pub fn graphics_changed(&self) -> bool {
+        self.graphics_changed
+    }
+
     pub fn run_cycle(&mut self) {
+        self.graphics_changed = false;
+
         if let Some(reg_idx) = self.await_key_target {
             for (i, &key) in self.key_state.iter().enumerate() {
                 if key {
@@ -171,6 +177,7 @@ impl Emulator {
                 *pixel = 0;
             }
         }
+        self.graphics_changed = true;
         self.pc += OP_SIZE;
     }
 

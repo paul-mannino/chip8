@@ -13,8 +13,13 @@ class Screen {
 
     for (let j = 0; j < logicalHeight; j++) {
       for (let i = 0; i < logicalWidth; i++) {
+        const xPos = i * pixelWidth;
+        const yPos = j * pixelHeight;
         if (pixels[i + (j * logicalWidth)] == 1) {
-          this.ctx.fillRect(i * pixelWidth, j * pixelHeight, pixelWidth, pixelHeight);
+          this.ctx.fillRect(xPos, yPos, pixelWidth, pixelHeight);
+        }
+        else {
+          this.ctx.clearRect(xPos, yPos, pixelWidth, pixelHeight)
         }
       }
     }
@@ -42,15 +47,17 @@ import("../pkg/index.js").then((pkg) => {
     const bus = pkg.Bus.new();
     bus.load_rom(instructions)
     let i = 0;
-    while(i < 100) {
+    while(i < 3000) {
       console.log(i);
       i += 1;
       bus.run_cycle();
-      screen.render(
-        bus.flattened_vram(),
-        bus.vram_height(),
-        bus.vram_width()
-      )
+      if (bus.rerender()) {
+        screen.render(
+          bus.flattened_vram(),
+          bus.vram_height(),
+          bus.vram_width()
+        )
+      }
     }
   });
 }).catch(console.error);
