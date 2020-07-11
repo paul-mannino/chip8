@@ -1,4 +1,7 @@
 use rand::Rng;
+use std::io;
+use std::io::prelude::*;
+use std::fs::File;
 
 const MEM_SIZE: usize = 4096;
 const N_REGISTERS: usize = 16;
@@ -37,7 +40,7 @@ pub struct Emulator {
     registers: [u8; N_REGISTERS],
     i: usize,
     pc: usize,
-    graphics: [[u8; SCREEN_WIDTH]; SCREEN_HEIGHT],
+    graphics: Vec<Vec<u8>>,
     delay_timer: u8,
     sound_timer: u8,
     stack: [usize; STACK_SIZE],
@@ -59,7 +62,7 @@ impl Emulator {
             registers: [0; N_REGISTERS],
             i: 0,
             pc: PROG_START,
-            graphics: [[0; SCREEN_WIDTH]; SCREEN_HEIGHT],
+            graphics: (0..SCREEN_HEIGHT).map(|_| vec![0; SCREEN_WIDTH]).collect(),
             delay_timer: 0,
             sound_timer: 0,
             stack: [0; STACK_SIZE],
@@ -74,6 +77,10 @@ impl Emulator {
         for (i, &instruction) in instructions.iter().enumerate() {
             self.memory[i + PROG_START] = instruction;
         }
+    }
+
+    pub fn graphics(&self) -> &Vec<Vec<u8>> {
+        &self.graphics
     }
 
     pub fn run_cycle(&mut self) {

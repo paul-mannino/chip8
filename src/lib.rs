@@ -1,6 +1,8 @@
 extern crate wasm_bindgen;
-
 use wasm_bindgen::prelude::*;
+
+pub mod emulator;
+use emulator::Emulator;
 
 #[wasm_bindgen]
 extern {
