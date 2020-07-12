@@ -49,16 +49,14 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Self {
         let mut memory = [0; MEM_SIZE];
-        for (i, &hex) in FONTSET.iter().enumerate() {
-            memory[FONT_START + i] = hex;
-        }
+        load_fonts(&mut memory);
 
         Emulator {
             memory: memory,
             registers: [0; N_REGISTERS],
             i: 0,
             pc: PROG_START,
-            graphics: (0..SCREEN_HEIGHT).map(|_| vec![0; SCREEN_WIDTH]).collect(),
+            graphics: build_screen(),
             delay_timer: 0,
             sound_timer: 0,
             stack: [0; STACK_SIZE],
@@ -67,6 +65,22 @@ impl Emulator {
             await_key_target: None,
             graphics_changed: false,
         }
+    }
+
+    pub fn reset(&mut self) {
+        let mut memory = [0; MEM_SIZE];
+        load_fonts(&mut memory);
+        self.memory = memory;
+        self.i = 0;
+        self.pc = PROG_START;
+        self.graphics = build_screen();
+        self.delay_timer = 0;
+        self.sound_timer = 0;
+        self.stack = [0; STACK_SIZE];
+        self.sp = 0;
+        self.key_state = [false; N_KEYS];
+        self.await_key_target = None;
+        self.graphics_changed = false;
     }
 
     pub fn load_program(&mut self, instructions: Vec<u8>) {
@@ -409,9 +423,19 @@ impl Emulator {
     }
 }
 
+fn load_fonts(memory: &mut [u8; MEM_SIZE]) {
+    for (i, &hex) in FONTSET.iter().enumerate() {
+        memory[FONT_START + i] = hex;
+    }
+}
+
 fn truncated_add(x: u8, y: u8) -> u8 {
     let z = (x as u16) + (y as u16);
     z as u8
+}
+
+fn build_screen() -> Vec<Vec<u8>> {
+    (0..SCREEN_HEIGHT).map(|_| vec![0; SCREEN_WIDTH]).collect()
 }
 
 #[cfg(test)]

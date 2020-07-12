@@ -3,9 +3,20 @@
   <head>
     <meta charset="UTF-8">
     <title>Chip8 WASM</title>
+    <style>
+      #canvas {
+        padding: 5px;
+        border: 5px solid black;
+      }
+    </style>
   </head>
   <body>
     <script src="index.js"></script>
-    <canvas id="canvas" height="320" width="640"></canvas>
+    <div class="game-area">
+      <div>
+        <canvas id="canvas" height="320" width="640"></canvas>
+      </div>
+      <select id="js-select-game"></select>
+    </div>
   </body>
 </html>

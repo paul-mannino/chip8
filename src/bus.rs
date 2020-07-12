@@ -20,6 +20,7 @@ impl Bus {
     }
 
     pub fn load_rom(&mut self, instructions: Vec<u8>) {
+        self.emulator.reset();
         self.emulator.load_program(instructions);
     }
 
