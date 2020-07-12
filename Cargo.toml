@@ -10,5 +10,6 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-rand = "0.7.3"
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 wasm-bindgen = "0.2.64"
+console_error_panic_hook = "0.1.6"

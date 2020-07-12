@@ -43,7 +43,7 @@ pub struct Emulator {
     sp: usize,
     key_state: [bool; N_KEYS],
     await_key_target: Option<usize>,
-    graphics_changed: bool,
+    pub graphics_changed: bool,
 }
 
 impl Emulator {
@@ -79,8 +79,8 @@ impl Emulator {
         &self.graphics
     }
 
-    pub fn graphics_changed(&self) -> bool {
-        self.graphics_changed
+    pub fn press_key(&mut self, key_idx: usize) {
+        self.key_state[key_idx] = true;
     }
 
     pub fn run_cycle(&mut self) {
@@ -110,6 +110,7 @@ impl Emulator {
                 self.sound_timer -= 1;
             }
         }
+        self.clear_keys();
     }
 
     fn fetch_opcode(&self, address: usize) -> Opcode {
@@ -399,6 +400,12 @@ impl Emulator {
 
     fn vf(&mut self) -> &mut u8 {
         &mut self.registers[0x0f]
+    }
+
+    fn clear_keys(&mut self) {
+        for key in self.key_state.iter_mut() {
+            *key = false;
+        }
     }
 }
 

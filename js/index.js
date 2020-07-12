@@ -1,28 +1,7 @@
-class Screen {
-  constructor(canvasId) {
-    this.canvas = document.getElementById(canvasId);
-    this.ctx = this.canvas.getContext('2d');
-    this.ctx.fillStyle = 'black';
-  }
+import Screen from './screen';
+import Keyboard from './keyboard';
 
-  render(pixels, logicalHeight, logicalWidth) {
-    const sHeight = this.canvas.height;
-    const sWidth = this.canvas.width;
-    this.ctx.clearRect(0, 0, sWidth, sHeight);
-    const pixelHeight = sHeight/logicalHeight;
-    const pixelWidth = sWidth/logicalWidth;
-
-    for (let j = 0; j < logicalHeight; j++) {
-      for (let i = 0; i < logicalWidth; i++) {
-        const xPos = i * pixelWidth;
-        const yPos = j * pixelHeight;
-        if (pixels[i + (j * logicalWidth)] == 1) {
-          this.ctx.fillRect(xPos, yPos, pixelWidth, pixelHeight);
-        }
-      }
-    }
-  }
-}
+const REFRESH_RATE_HZ = 200;
 
 function load_rom_bytes(rom_name, callback) {
   const xhr = new XMLHttpRequest();
@@ -39,23 +18,28 @@ function load_rom_bytes(rom_name, callback) {
   xhr.send();
 }
 
+function startRom(bus, screen, keyboard, instructions) {
+  bus.load_rom(instructions)
+  const cycle = function() {
+    keyboard.sendUserInput();
+    bus.clock_tick();
+    if (bus.rerender_needed()) {
+      screen.render(
+        bus.flattened_vram(),
+        bus.vram_height(),
+        bus.vram_width()
+      )
+    }
+  }
+
+  setInterval(cycle, 1000/REFRESH_RATE_HZ);
+}
+
 import("../pkg/index.js").then((pkg) => {
   const screen = new Screen('canvas');
-  load_rom_bytes('IBM', function(instructions) {
-    const bus = pkg.Bus.new();
-    bus.load_rom(instructions)
-    let i = 0;
-    while(i < 100000) {
-      i += 1;
-      bus.clock_tick();
-      if (bus.rerender()) {
-        screen.render(
-          bus.flattened_vram(),
-          bus.vram_height(),
-          bus.vram_width()
-        )
-      }
-    }
-  });
+  const bus = pkg.Bus.new();
+  const keyboard = new Keyboard(bus);
+  keyboard.loadListeners();
+  load_rom_bytes('PONG', instructions => startRom(bus, screen, keyboard, instructions));
 }).catch(console.error);
 
