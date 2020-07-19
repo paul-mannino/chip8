@@ -44,6 +44,7 @@ pub struct Emulator {
     key_state: [bool; N_KEYS],
     await_key_target: Option<usize>,
     pub graphics_changed: bool,
+    pub trigger_sound: bool,
 }
 
 impl Emulator {
@@ -64,6 +65,7 @@ impl Emulator {
             key_state: [false; N_KEYS],
             await_key_target: None,
             graphics_changed: false,
+            trigger_sound: false,
         }
     }
 
@@ -99,6 +101,7 @@ impl Emulator {
 
     pub fn run_cycle(&mut self) {
         self.graphics_changed = false;
+        self.trigger_sound = false;
 
         if let Some(reg_idx) = self.await_key_target {
             for (i, &key) in self.key_state.iter().enumerate() {
@@ -119,7 +122,7 @@ impl Emulator {
 
             if self.sound_timer > 0 {
                 if self.sound_timer == 1 {
-                    // beep
+                    self.trigger_sound = true;
                 }
                 self.sound_timer -= 1;
             }

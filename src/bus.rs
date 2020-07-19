@@ -38,6 +38,10 @@ impl Bus {
         self.emulator.graphics_changed
     }
 
+    pub fn trigger_sound(&self) -> bool {
+        self.emulator.trigger_sound
+    }
+
     pub fn flattened_vram(&self) -> Vec<u8> {
         self.emulator.graphics().iter().flatten().cloned().collect()
     }

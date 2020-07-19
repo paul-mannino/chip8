@@ -1,5 +1,6 @@
 import Screen from './screen';
 import Keyboard from './keyboard';
+import Speakers from './speakers';
 
 const REFRESH_RATE_HZ = 200;
 const programRegistry = [];
@@ -19,8 +20,8 @@ function loadRomBytes(romName, callback) {
   xhr.send();
 }
 
-function loadAndStart(program, bus, screen, keyboard) {
-  loadRomBytes(program, instructions => startRom(bus, screen, keyboard, instructions));
+function loadAndStart(program, bus, screen, keyboard, audio) {
+  loadRomBytes(program, instructions => startRom(bus, screen, keyboard, audio, instructions));
 }
 
 const ROMS = [
@@ -48,7 +49,18 @@ function setupRomSelector(bus, screen, keyboard) {
   })
 }
 
-function startRom(bus, screen, keyboard, instructions) {
+function setupAudio() {
+  const audio = new Speakers();
+  const muteButton = document.getElementById('js-mute-volume');
+  audio.setVolume(!muteButton.checked);
+  muteButton.addEventListener('change', function() {
+    audio.setVolume(!muteButton.checked);
+  });
+
+  return audio;
+}
+
+function startRom(bus, screen, keyboard, audio, instructions) {
   bus.load_rom(instructions)
   const cycle = function() {
     keyboard.sendUserInput();
@@ -60,6 +72,10 @@ function startRom(bus, screen, keyboard, instructions) {
         bus.vram_width()
       )
     }
+
+    if (bus.trigger_sound()) {
+      audio.beep();
+    }
   }
 
   programRegistry.push(setInterval(cycle, 1000/REFRESH_RATE_HZ));
@@ -69,8 +85,9 @@ import("../pkg/index.js").then((pkg) => {
   const screen = new Screen('canvas');
   const bus = pkg.Bus.new();
   const keyboard = new Keyboard(bus);
+  const audio = setupAudio();
   setupRomSelector(bus, screen, keyboard);
   keyboard.loadListeners();
-  loadAndStart(ROMS[0], bus, screen, keyboard);
+  loadAndStart(ROMS[0], bus, screen, keyboard, audio);
 }).catch(console.error);
 
